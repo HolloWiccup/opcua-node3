@@ -200,51 +200,161 @@ webApp.get('/add-device', (req, res) => {
 });
 
 // TCP сервер для модемов
+// function startTCPServers() {
+//     for (let port = TCP_PORTS_START; port <= TCP_PORTS_END; port++) {
+//         const tcpServer = net.createServer((socket) => {
+//             const connectionId = `${socket.remoteAddress}:${socket.remotePort}:${port}`;
+//             console.log(`Новое подключение от модема: ${connectionId}`);
+            
+//             // Сохраняем соединение
+//             tcpConnections.set(connectionId, socket);
+            
+//             socket.on('data', (data) => {
+//                 console.log(`Данные от модема ${connectionId}:`, data.toString('hex'));
+                
+//                 // Обработка Modbus запросов
+//                 handleModbusRequest(data, socket, port);
+//             });
+            
+//             socket.on('close', () => {
+//                 console.log(`Соединение с модемом ${connectionId} закрыто`);
+//                 tcpConnections.delete(connectionId);
+//             });
+            
+//             socket.on('error', (err) => {
+//                 console.error(`Ошибка с модемом ${connectionId}:`, err.message);
+//                 tcpConnections.delete(connectionId);
+//             });
+//         });
+
+//         tcpServer.listen(port, '0.0.0.0', () => {
+//             console.log(`TCP сервер запущен на порту ${port}`);
+//         }).on('error', (err) => {
+//             console.error(`Не удалось запустить сервер на порту ${port}:`, err.message);
+//         });
+//     }
+// }
+
+// TCP сервер для модемов
 function startTCPServers() {
     for (let port = TCP_PORTS_START; port <= TCP_PORTS_END; port++) {
         const tcpServer = net.createServer((socket) => {
             const connectionId = `${socket.remoteAddress}:${socket.remotePort}:${port}`;
-            console.log(`Новое подключение от модема: ${connectionId}`);
+            console.log(`✅ Новое подключение от модема: ${connectionId}`);
             
             // Сохраняем соединение
             tcpConnections.set(connectionId, socket);
             
             socket.on('data', (data) => {
-                console.log(`Данные от модема ${connectionId}:`, data.toString('hex'));
+                console.log(`📨 Данные от модема ${connectionId}: ${data.toString('hex')}`);
                 
                 // Обработка Modbus запросов
                 handleModbusRequest(data, socket, port);
             });
             
             socket.on('close', () => {
-                console.log(`Соединение с модемом ${connectionId} закрыто`);
+                console.log(`🔌 Соединение с модемом ${connectionId} закрыто`);
                 tcpConnections.delete(connectionId);
             });
             
             socket.on('error', (err) => {
-                console.error(`Ошибка с модемом ${connectionId}:`, err.message);
+                console.error(`❌ Ошибка с модемом ${connectionId}:`, err.message);
                 tcpConnections.delete(connectionId);
             });
         });
 
         tcpServer.listen(port, '0.0.0.0', () => {
-            console.log(`TCP сервер запущен на порту ${port}`);
+            console.log(`✅ TCP сервер запущен на порту ${port}`);
         }).on('error', (err) => {
-            console.error(`Не удалось запустить сервер на порту ${port}:`, err.message);
+            console.error(`❌ Не удалось запустить сервер на порту ${port}:`, err.message);
         });
     }
 }
 
 // Обработка Modbus запросов
+// function handleModbusRequest(data, socket, port) {
+//     try {
+//         // Парсим Modbus запрос
+//         const transactionId = data.readUInt16BE(0);
+//         const protocolId = data.readUInt16BE(2);
+//         const length = data.readUInt16BE(4);
+//         const unitId = data.readUInt5BE(6);
+//         const functionCode = data.readUInt8(7);
+        
+//         // Находим устройство по порту и unitId
+//         const device = devices.find(d => 
+//             d.type === 'tcp-modem' && 
+//             d.port === port && 
+//             d.deviceId === unitId
+//         );
+        
+//         if (!device) {
+//             console.log(`Устройство не найдено для порта ${port}, unitId ${unitId}`);
+//             return;
+//         }
+        
+//         // Обрабатываем функцию чтения регистров
+//         if (functionCode === 0x03) { // Read Holding Registers
+//             const startAddress = data.readUInt16BE(8);
+//             const quantity = data.readUInt16BE(10);
+            
+//             // Ищем тег по адресу
+//             const tag = device.tags.find(t => t.address === startAddress);
+            
+//             if (tag) {
+//                 const value = tag.currentValue || 0;
+//                 let responseData;
+                
+//                 if (tag.dataType === 'float') {
+//                     const buffer = Buffer.alloc(4);
+//                     buffer.writeFloatBE(value, 0);
+//                     responseData = Buffer.from([
+//                         buffer.readUInt8(0), buffer.readUInt8(1),
+//                         buffer.readUInt8(2), buffer.readUInt8(3)
+//                     ]);
+//                 } else {
+//                     responseData = Buffer.alloc(2);
+//                     responseData.writeUInt16BE(Math.round(value));
+//                 }
+                
+//                 // Формируем ответ
+//                 const response = Buffer.alloc(9 + responseData.length);
+//                 response.writeUInt16BE(transactionId, 0);
+//                 response.writeUInt16BE(protocolId, 2);
+//                 response.writeUInt16BE(3 + responseData.length, 4); // length
+//                 response.writeUInt8(unitId, 6);
+//                 response.writeUInt8(0x03, 7); // function code
+//                 response.writeUInt8(responseData.length, 8); // byte count
+//                 responseData.copy(response, 9);
+                
+//                 socket.write(response);
+//                 console.log(`Отправлен ответ для адреса ${startAddress}: ${value}`);
+//             }
+//         }
+        
+//     } catch (error) {
+//         console.error('Ошибка обработки Modbus запроса:', error);
+//     }
+// }
+
+// Обработка Modbus запросов
 function handleModbusRequest(data, socket, port) {
     try {
-        // Парсим Modbus запрос
+        console.log(`📨 Modbus запрос: ${data.toString('hex')}`);
+
+        // Парсим Modbus TCP заголовок
         const transactionId = data.readUInt16BE(0);
         const protocolId = data.readUInt16BE(2);
         const length = data.readUInt16BE(4);
-        const unitId = data.readUInt5BE(6);
+        const unitId = data.readUInt8(6); // Исправлено: readUInt8 вместо readUInt5BE
         const functionCode = data.readUInt8(7);
         
+        console.log(`📊 Transaction ID: ${transactionId}`);
+        console.log(`📊 Protocol ID: ${protocolId}`);
+        console.log(`📊 Length: ${length}`);
+        console.log(`📊 Unit ID: ${unitId}`);
+        console.log(`📊 Function Code: 0x${functionCode.toString(16)}`);
+
         // Находим устройство по порту и unitId
         const device = devices.find(d => 
             d.type === 'tcp-modem' && 
@@ -253,20 +363,35 @@ function handleModbusRequest(data, socket, port) {
         );
         
         if (!device) {
-            console.log(`Устройство не найдено для порта ${port}, unitId ${unitId}`);
+            console.log(`❌ Устройство не найдено для порта ${port}, unitId ${unitId}`);
+            
+            // Отправляем ошибку "Illegal Data Address" (код 0x02)
+            const errorResponse = Buffer.alloc(9);
+            errorResponse.writeUInt16BE(transactionId, 0);
+            errorResponse.writeUInt16BE(protocolId, 2);
+            errorResponse.writeUInt16BE(3, 4);
+            errorResponse.writeUInt8(unitId, 6);
+            errorResponse.writeUInt8(0x83, 7); // Function code + 0x80 для ошибки
+            errorResponse.writeUInt8(0x02, 8); // Error code: Illegal Data Address
+            
+            socket.write(errorResponse);
             return;
         }
         
-        // Обрабатываем функцию чтения регистров
-        if (functionCode === 0x03) { // Read Holding Registers
+        // Обрабатываем функцию чтения регистров (0x03)
+        if (functionCode === 0x03) {
             const startAddress = data.readUInt16BE(8);
             const quantity = data.readUInt16BE(10);
             
+            console.log(`📊 Запрос регистров: адрес=${startAddress}, количество=${quantity}`);
+
             // Ищем тег по адресу
             const tag = device.tags.find(t => t.address === startAddress);
             
             if (tag) {
                 const value = tag.currentValue || 0;
+                console.log(`✅ Найден тег: ${tag.name}, значение: ${value}`);
+                
                 let responseData;
                 
                 if (tag.dataType === 'float') {
@@ -291,13 +416,50 @@ function handleModbusRequest(data, socket, port) {
                 response.writeUInt8(responseData.length, 8); // byte count
                 responseData.copy(response, 9);
                 
+                console.log(`📤 Отправляем ответ: ${response.toString('hex')}`);
                 socket.write(response);
-                console.log(`Отправлен ответ для адреса ${startAddress}: ${value}`);
+            } else {
+                console.log(`❌ Тег не найден для адреса ${startAddress}`);
+                
+                // Отправляем ошибку "Illegal Data Address"
+                const errorResponse = Buffer.alloc(9);
+                errorResponse.writeUInt16BE(transactionId, 0);
+                errorResponse.writeUInt16BE(protocolId, 2);
+                errorResponse.writeUInt16BE(3, 4);
+                errorResponse.writeUInt8(unitId, 6);
+                errorResponse.writeUInt8(0x83, 7); // Function code + 0x80 для ошибки
+                errorResponse.writeUInt8(0x02, 8); // Error code: Illegal Data Address
+                
+                socket.write(errorResponse);
             }
+        } else {
+            console.log(`❌ Неподдерживаемая функция: 0x${functionCode.toString(16)}`);
+            
+            // Отправляем ошибку "Illegal Function" (код 0x01)
+            const errorResponse = Buffer.alloc(9);
+            errorResponse.writeUInt16BE(transactionId, 0);
+            errorResponse.writeUInt16BE(protocolId, 2);
+            errorResponse.writeUInt16BE(3, 4);
+            errorResponse.writeUInt8(unitId, 6);
+            errorResponse.writeUInt8(0x80 + functionCode, 7); // Function code + 0x80
+            errorResponse.writeUInt8(0x01, 8); // Error code: Illegal Function
+            
+            socket.write(errorResponse);
         }
         
     } catch (error) {
-        console.error('Ошибка обработки Modbus запроса:', error);
+        console.error('❌ Ошибка обработки Modbus запроса:', error);
+        
+        // Отправляем общую ошибку
+        const errorResponse = Buffer.alloc(9);
+        errorResponse.writeUInt16BE(data.readUInt16BE(0), 0); // Transaction ID из запроса
+        errorResponse.writeUInt16BE(0, 2); // Protocol ID
+        errorResponse.writeUInt16BE(3, 4); // Length
+        errorResponse.writeUInt8(data.readUInt8(6), 6); // Unit ID из запроса
+        errorResponse.writeUInt8(0x80 + data.readUInt8(7), 7); // Function code + 0x80
+        errorResponse.writeUInt8(0x04, 8); // Error code: Slave Device Failure
+        
+        socket.write(errorResponse);
     }
 }
 
