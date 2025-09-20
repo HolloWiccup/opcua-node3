@@ -1,0 +1,29 @@
+{
+  "name": "modbus-opcua-bridge",
+  "version": "1.0.0",
+  "description": "Modbus to OPC UA Bridge with TCP modem support",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test-server": "node test-modbus-server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "node-opcua": "^2.93.0",
+    "modbus-serial": "^8.0.6",
+    "express": "^4.18.2",
+    "serialport": "^10.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "modbus",
+    "opcua",
+    "tcp",
+    "industrial",
+    "iot"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
