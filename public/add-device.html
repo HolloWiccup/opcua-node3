@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавить устройство - Modbus OPC UA Bridge</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .tag-list {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .tag-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .btn-remove {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Добавить новое устройство</h1>
+        </header>
+
+        <div class="card">
+            <form id="deviceForm">
+                <div class="form-group">
+                    <label for="name">Название устройства:</label>
+                    <input type="text" id="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="type">Тип подключения:</label>
+                    <select id="type" required>
+                        <option value="tcp">Modbus TCP</option>
+                        <option value="rtu">Modbus RTU (Serial)</option>
+                        <option value="tcp-modem">TCP Модем (входящее соединение)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="addressGroup">
+                    <label for="address">Адрес:</label>
+                    <input type="text" id="address" placeholder="IP адрес или COM порт">
+                </div>
+
+                <div class="form-group" id="portGroup">
+                    <label for="port">Порт:</label>
+                    <input type="number" id="port" placeholder="502" value="502">
+                </div>
+
+                <div class="form-group">
+                    <label for="deviceId">Slave ID:</label>
+                    <input type="number" id="deviceId" value="1" min="1" max="247">
+                </div>
+
+                <div class="form-group">
+                    <label for="pollInterval">Интервал опроса (мс):</label>
+                    <input type="number" id="pollInterval" value="2000" min="100">
+                </div>
+
+                <h3>Теги устройства</h3>
+                <div class="tag-list" id="tagsList">
+                    <div class="tag-item">
+                        <div class="form-group">
+                            <label>Имя тега:</label>
+                            <input type="text" name="tagName" placeholder="temperature" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Тип регистра:</label>
+                            <select name="registerType" required>
+                                <option value="holding">Holding Register</option>
+                                <option value="input">Input Register</option>
+                                <option value="coil">Coil</option>
+                                <option value="discrete">Discrete Input</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Адрес регистра:</label>
+                            <input type="number" name="address" value="0" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Тип данных:</label>
+                            <select name="dataType" required>
+                                <option value="uint16">UInt16</option>
+                                <option value="int16">Int16</option>
+                                <option value="uint32">UInt32</option>
+                                <option value="int32">Int32</option>
+                                <option value="float">Float</option>
+                                <option value="boolean">Boolean</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-remove" onclick="removeTag(this)">Удалить</button>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-secondary" onclick="addTag()" style="margin-top: 10px;">
+                    Добавить тег
+                </button>
+
+                <div style="margin-top: 20px;">
+                    <button type="submit" class="btn">Сохранить устройство</button>
+                    <a href="/" class="btn btn-secondary">Назад</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Показать/скрыть поля в зависимости от типа подключения
+        document.getElementById('type').addEventListener('change', function() {
+            const type = this.value;
+            const addressGroup = document.getElementById('addressGroup');
+            const portGroup = document.getElementById('portGroup');
+            
+            if (type === 'tcp-modem') {
+                addressGroup.style.display = 'none';
+                portGroup.style.display = 'block';
+                document.getElementById('port').value = '8000';
+            } else if (type === 'rtu') {
+                addressGroup.style.display = 'block';
+                portGroup.style.display = 'none';
+                document.getElementById('address').placeholder = 'COM1, /dev/ttyUSB0';
+            } else {
+                addressGroup.style.display = 'block';
+                portGroup.style.display = 'block';
+                document.getElementById('address').placeholder = 'IP адрес';
+                document.getElementById('port').value = '502';
+            }
+        });
+
+        // Добавление нового тега
+        function addTag() {
+            const tagsList = document.getElementById('tagsList');
+            const newTag = document.createElement('div');
+            newTag.className = 'tag-item';
+            newTag.innerHTML = `
+                <div class="form-group">
+                    <label>Имя тега:</label>
+                    <input type="text" name="tagName" placeholder="temperature" required>
+                </div>
+                <div class="form-group">
+                    <label>Тип регистра:</label>
+                    <select name="registerType" required>
+                        <option value="holding">Holding Register</option>
+                        <option value="input">Input Register</option>
+                        <option value="coil">Coil</option>
+                        <option value="discrete">Discrete Input</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Адрес регистра:</label>
+                    <input type="number" name="address" value="0" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Тип данных:</label>
+                    <select name="dataType" required>
+                        <option value="uint16">UInt16</option>
+                        <option value="int16">Int16</option>
+                        <option value="uint32">UInt32</option>
+                        <option value="int32">Int32</option>
+                        <option value="float">Float</option>
+                        <option value="boolean">Boolean</option>
+                    </select>
+                </div>
+                <button type="button" class="btn-remove" onclick="removeTag(this)">Удалить</button>
+            `;
+            tagsList.appendChild(newTag);
+        }
+
+        // Удаление тега
+        function removeTag(button) {
+            const tagItem = button.parentElement;
+            if (document.querySelectorAll('.tag-item').length > 1) {
+                tagItem.remove();
+            } else {
+                alert('Должен быть хотя бы один тег');
+            }
+        }
+
+        // Обработка отправки формы
+        document.getElementById('deviceForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const device = {
+                name: document.getElementById('name').value,
+                type: document.getElementById('type').value,
+                deviceId: parseInt(document.getElementById('deviceId').value),
+                pollInterval: parseInt(document.getElementById('pollInterval').value)
+            };
+
+            if (device.type !== 'tcp-modem') {
+                device.address = document.getElementById('address').value;
+            }
+
+            if (device.type === 'tcp' || device.type === 'tcp-modem') {
+                device.port = parseInt(document.getElementById('port').value);
+            }
+
+            // Собираем теги
+            device.tags = [];
+            const tagItems = document.querySelectorAll('.tag-item');
+            tagItems.forEach(item => {
+                device.tags.push({
+                    name: item.querySelector('[name="tagName"]').value,
+                    registerType: item.querySelector('[name="registerType"]').value,
+                    address: parseInt(item.querySelector('[name="address"]').value),
+                    dataType: item.querySelector('[name="dataType"]').value
+                });
+            });
+
+            try {
+                const response = await fetch('/api/devices', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(device)
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('Устройство успешно добавлено!');
+                    window.location.href = '/';
+                } else {
+                    alert('Ошибка: ' + result.error);
+                }
+            } catch (error) {
+                alert('Ошибка сети: ' + error.message);
+            }
+        });
+
+        // Инициализация
+        document.getElementById('type').dispatchEvent(new Event('change'));
+    </script>
+</body>
+</html>
